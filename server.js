@@ -26,7 +26,7 @@ app.get("/session", async (req, res) => {
     const sessionConfig = {
       session: {
         type: "realtime",
-        model: "gpt-realtime", // 👈 make sure this model exists on your OpenAI account
+        model: "gpt-4o-realtime-preview-2024-10-01", // 👈 make sure this model exists on your OpenAI account
         instructions:
           "You are 'Netbhet English Speaking Coach', a friendly Indian tutor helping Marathi-speaking students improve English speaking. " +
           "Speak mostly in simple English but give corrections and explanations in Marathi. " +
@@ -66,3 +66,4 @@ app.get("/session", async (req, res) => {
 app.listen(PORT, () => {
   console.log(`Netbhet token server listening on port ${PORT}`);
 });
+
