@@ -1,18 +1,3 @@
-I apologize for the display issues. I am pasting the **Backend Code (`server.js`)** here as plain text.
-
-To address your new requirements, I have added a **"Safety & Moderation"** section to the AI's instructions.
-
-### **What is new in this code?**
-
-1.  **Safety Filters:** I added strict rules to block profanity, politics, religion, and adult topics. If the user tries to discuss them, the AI will politely steer the conversation back to English practice.
-2.  **Aggressive Noise Cancellation:** I kept the `threshold: 0.75` setting to stop the "ghost words" (the AI responding to silence).
-3.  **Persona Switching:** It still supports the Male/Female and Strict/Funny options we built earlier.
-
-### **Full Backend Code (`server.js`)**
-
-**Action:** Copy the code below, replace your current `server.js`, and **Redeploy on Render**.
-
-```javascript
 import express from "express";
 import cors from "cors";
 
@@ -31,15 +16,23 @@ app.get("/", (req, res) => {
 
 app.get("/session", async (req, res) => {
     try {
-        // 1. CAPTURE INPUTS
+        // 1. CAPTURE INPUTS FROM FRONTEND
         const level = req.query.level || "Intermediate";
         const name = req.query.name || "Student";
-        const voiceType = req.query.voice || "female"; 
+        // voiceType now accepts exact voice names (e.g., 'alloy', 'echo')
+        const voiceType = req.query.voice || "coral"; 
         const style = req.query.style || "casual"; 
 
-        // 2. CONFIGURE VOICE & PERSONA
-        const selectedVoice = voiceType === 'male' ? 'ash' : 'coral';
-        const assistantName = voiceType === 'male' ? 'Rahul' : 'Riya';
+        // 2. VALIDATE VOICE
+        // These are the 8 voices currently supported by OpenAI Realtime API
+        const validVoices = ["alloy", "ash", "ballad", "coral", "echo", "sage", "shimmer", "verse"];
+        const selectedVoice = validVoices.includes(voiceType) ? voiceType : "coral";
+
+        // Auto-assign name based on voice tone roughly (Male/Female sounding)
+        // Male-sounding: alloy, ash, echo, verse
+        // Female-sounding: ballad, coral, sage, shimmer
+        const maleVoices = ["alloy", "ash", "echo", "verse"];
+        const assistantName = maleVoices.includes(selectedVoice) ? "Rahul" : "Riya";
 
         // 3. DEFINE BEHAVIORS
         let styleInstructions = "";
@@ -51,7 +44,7 @@ app.get("/session", async (req, res) => {
             styleInstructions = "Be friendly, casual, and supportive. Like a helpful friend.";
         }
 
-        // 4. MASTER PROMPT (With Safety & Noise Filters)
+        // 4. MASTER PROMPT
         const systemInstructions = `
             You are ${assistantName}, an English language coach for a Marathi-speaking student named ${name}.
             The student's English level is: ${level}.
@@ -63,12 +56,10 @@ app.get("/session", async (req, res) => {
             2. **EXPLAIN:** Briefly tell them in MARATHI to just speak normally.
             3. **LANGUAGE:** Speak primarily in English. Explain mistakes in MARATHI.
             
-            4. **SAFETY & MODERATION (STRICT):** - Keep the conversation strictly family-friendly and clean.
-               - PROHIBITED TOPICS: Politics, Religion, Violence, Sexual Content, Drugs, or Profanity.
-               - If the student uses bad words or brings up prohibited topics, calmly say: "Let's keep our conversation clean and focus on English practice," and change the topic.
+            4. **SAFETY & MODERATION:** - Keep conversation clean. NO politics, religion, or profanity.
+               - If user is inappropriate, change the topic politely.
             
-            5. **NOISE HANDLING:** - If the audio is unclear, muffled, or sounds like breathing/static, DO NOT RESPOND with "Thank you", "Bye", or "Okay".
-               - Just stay silent.
+            5. **NOISE HANDLING:** - If audio is unclear, stay silent. DO NOT hallucinate "Thank you".
         `;
 
         const sessionConfig = {
@@ -76,24 +67,12 @@ app.get("/session", async (req, res) => {
             voice: selectedVoice,
             instructions: systemInstructions,
             
-            // ============================================================
-            // AGGRESSIVE NOISE FILTERING (VAD SETTINGS)
-            // ============================================================
+            // AGGRESSIVE NOISE FILTERING
             turn_detection: {
                 type: "server_vad",
-                
-                // 1. SENSITIVITY (0.0 to 1.0)
-                // Default is 0.5. We set 0.75 to block background noise.
                 threshold: 0.75, 
-                
-                // 2. PREFIX PADDING
-                // Reduces the "buffer" audio before you speak, cutting out breathing sounds.
                 prefix_padding_ms: 300, 
-                
-                // 3. SILENCE DURATION
-                // Wait 1 second of silence before responding.
                 silence_duration_ms: 1000, 
-                
                 create_response: true
             },
 
@@ -127,4 +106,3 @@ app.get("/session", async (req, res) => {
 });
 
 app.listen(PORT, () => console.log(`Token server running on port ${PORT}`));
-```
