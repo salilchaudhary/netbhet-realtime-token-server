@@ -1,30 +1,38 @@
 import express from "express";
 import cors from "cors";
-// Note: Node.js 18+ has built-in fetch. If using older Node, npm install node-fetch
+
+// NOTE: Node.js 18+ has built-in 'fetch'. 
+// If using Node < 18, uncomment the next line and run 'npm install node-fetch'
 // import fetch from "node-fetch"; 
 
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-// Allow Weebly and your S3 domain to access this server
+// Enable CORS for Weebly access
 app.use(cors());
 
+// Health Check
 app.get("/", (req, res) => {
     res.send("Netbhet Realtime Token Server is running");
 });
 
+// Session Endpoint
 app.get("/session", async (req, res) => {
     try {
+        // 1. Get level from query param
         const level = req.query.level || "Intermediate";
         
-        // CONFIGURATION FOR THE SESSION
+        // 2. Configure Session
+        // CRITICAL: This model name must match the frontend code EXACTLY.
+        // If this does not match, you will get Error 400.
         const sessionConfig = {
-            model: "gpt-4o-realtime-preview-2024-10-01", // CRITICAL FIX: Updated Model Name
-            voice: "alloy",
-            instructions: `You are an English language coach. The student's level is ${level}. Speak clearly. If they make a mistake, gently correct them. Keep responses concise.`
+            model: "gpt-4o-realtime-preview-2024-10-01", 
+            voice: "alloy", 
+            instructions: `You are a helpful English language coach. The student's level is ${level}. Speak clearly. If they make a mistake, gently correct them.`
         };
 
-        const r = await fetch("https://api.openai.com/v1/realtime/sessions", {
+        // 3. Get Token from OpenAI
+        const response = await fetch("https://api.openai.com/v1/realtime/sessions", {
             method: "POST",
             headers: {
                 "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
@@ -33,19 +41,20 @@ app.get("/session", async (req, res) => {
             body: JSON.stringify(sessionConfig),
         });
 
-        const data = await r.json();
+        const data = await response.json();
 
-        if (!r.ok) {
-            console.error("OpenAI API Error:", data);
-            return res.status(r.status).json(data);
+        // 4. Error Handling
+        if (!response.ok) {
+            console.error("OpenAI Token Error:", data);
+            return res.status(response.status).json(data);
         }
 
-        // Return the Ephemeral Key to the frontend
+        // 5. Success
         res.json(data);
 
     } catch (err) {
         console.error("Server Error:", err);
-        res.status(500).json({ error: "Failed to create ephemeral key" });
+        res.status(500).json({ error: "Internal Server Error" });
     }
 });
 
